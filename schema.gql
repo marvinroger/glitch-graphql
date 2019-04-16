@@ -37,7 +37,7 @@ type Mutation {
   deleteBooking(id: String!): Boolean!
 
   """Create a new resource"""
-  createResource(newResourceData: NewResourceInput!): Resource!
+  createResource(data: NewResourceInput!): Resource!
 
   """Delete an existing resource"""
   deleteResource(id: String!): Boolean!

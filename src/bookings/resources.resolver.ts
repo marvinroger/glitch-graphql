@@ -48,9 +48,9 @@ export class ResourcesResolver {
 
   @Mutation(returns => Resource, { description: 'Create a new resource' })
   async createResource(
-    @Args('newResourceData') newResourceData: NewResourceInput,
+    @Args('data') data: NewResourceInput,
   ): Promise<Resource> {
-    const resource = await this.resourcesService.create(newResourceData);
+    const resource = await this.resourcesService.create(data);
     pubSub.publish('resourceCreated', { resourceAdded: resource });
     return resource;
   }
