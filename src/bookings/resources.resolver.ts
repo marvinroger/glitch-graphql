@@ -1,4 +1,3 @@
-import { NotFoundException } from '@nestjs/common';
 import {
   Args,
   Mutation,
@@ -8,14 +7,12 @@ import {
   Parent,
   ResolveProperty,
 } from '@nestjs/graphql';
-import { PubSub } from 'apollo-server-express';
+import { pubSub } from './pubsub';
 import { NewResourceInput } from './dto/new-resource.input';
 import { ResourcesArgs } from './dto/resources.args';
 import { Resource } from './models/resource';
 import { ResourcesService } from './resources.service';
 import { BookingsService } from './bookings.service';
-
-const pubSub = new PubSub();
 
 @Resolver(of => Resource)
 export class ResourcesResolver {
@@ -25,10 +22,10 @@ export class ResourcesResolver {
   ) {}
 
   @Query(returns => Resource, { description: 'Get a single resource' })
-  async getResource(@Args('id') id: string): Promise<Resource> {
+  async resource(@Args('id') id: string): Promise<Resource> {
     const resource = await this.resourcesService.findOneById(id);
     if (!resource) {
-      throw new NotFoundException('This resource does not exist');
+      throw new Error(`The resource ${id} does not exist`);
     }
 
     return resource;
@@ -37,7 +34,7 @@ export class ResourcesResolver {
   @Query(returns => [Resource], {
     description: 'Get multiple resources, based on optional filters',
   })
-  getAllResources(@Args() resourcesArgs: ResourcesArgs): Promise<Resource[]> {
+  allResources(@Args() resourcesArgs: ResourcesArgs): Promise<Resource[]> {
     return this.resourcesService.findAll(resourcesArgs);
   }
 
@@ -51,13 +48,8 @@ export class ResourcesResolver {
     @Args('data') data: NewResourceInput,
   ): Promise<Resource> {
     const resource = await this.resourcesService.create(data);
-    pubSub.publish('resourceCreated', { resourceAdded: resource });
+    pubSub.publish('resourceCreated', { resourceCreated: resource });
     return resource;
-  }
-
-  @Mutation(returns => Boolean, { description: 'Delete an existing resource' })
-  async deleteResource(@Args('id') id: string) {
-    return this.resourcesService.remove(id);
   }
 
   @Subscription(returns => Resource, { description: 'A resource was created' })

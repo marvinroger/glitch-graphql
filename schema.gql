@@ -33,14 +33,8 @@ type Mutation {
   """Create a new booking"""
   createBooking(data: NewBookingInput!): Booking!
 
-  """Delete an existing booking"""
-  deleteBooking(id: String!): Boolean!
-
   """Create a new resource"""
   createResource(data: NewResourceInput!): Resource!
-
-  """Delete an existing resource"""
-  deleteResource(id: String!): Boolean!
 }
 
 """Data for a new booking"""
@@ -66,19 +60,19 @@ input NewResourceInput {
 
 type Query {
   """Get a single booking"""
-  getBooking(id: String!): Booking!
+  booking(id: String!): Booking!
 
   """Get multiple bookings, based on optional filters"""
-  getAllBookings(
+  allBookings(
     """Name to filter the bookings by"""
     name: String
   ): [Booking!]!
 
   """Get a single resource"""
-  getResource(id: String!): Resource!
+  resource(id: String!): Resource!
 
   """Get multiple resources, based on optional filters"""
-  getAllResources(
+  allResources(
     """Name to filter the resources by"""
     name: String
   ): [Resource!]!

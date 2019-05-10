@@ -15,6 +15,18 @@ export class ResourcesService {
   ) {}
 
   async create(data: NewResourceInput): Promise<Resource> {
+    if (data.name === '') {
+      throw new Error('The name cannot be empty');
+    }
+
+    const conflictingName = await this.resourceRepository.findOne({
+      name: data.name,
+    });
+
+    if (conflictingName) {
+      throw new Error(`The resource ${data.name} already exists`);
+    }
+
     const resourceEntity = new ResourceEntity();
     resourceEntity.id = nanoid();
     resourceEntity.creationDate = new Date();
@@ -51,11 +63,5 @@ export class ResourcesService {
       name: entity.name,
       creationDate: entity.creationDate,
     }));
-  }
-
-  async remove(id: string): Promise<boolean> {
-    const result = await this.resourceRepository.delete(id);
-
-    return result.affected === 1;
   }
 }

@@ -1,4 +1,4 @@
-import { IsOptional, Length, MaxLength } from 'class-validator';
+import { MaxLength } from 'class-validator';
 import { Field, InputType } from 'type-graphql';
 
 @InputType({ description: 'Data for a new booking' })

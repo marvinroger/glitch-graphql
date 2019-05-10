@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import * as nanoid from 'nanoid';
 import { NewBookingInput } from './dto/new-booking.input';
 import { BookingsArgs } from './dto/bookings.args';
@@ -6,8 +6,10 @@ import { Booking } from './models/booking';
 import { Booking as BookingEntity } from './bookings.entity';
 import { Resource as ResourceEntity } from './resources.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, LessThanOrEqual, MoreThanOrEqual, Raw } from 'typeorm';
 import { Resource } from './models/resource';
+
+const DATE_REGEX = /^(-?(?:[1-9][0-9]*)?[0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01][0-9]):([0-5][0-9]):([0-5][0-9])(.[0-9]+)?(Z)?$/;
 
 @Injectable()
 export class BookingsService {
@@ -20,20 +22,67 @@ export class BookingsService {
   ) {}
 
   async create(data: NewBookingInput): Promise<Booking> {
+    if (data.name === '') {
+      throw new Error('The name cannot be empty');
+    }
+
+    // Workaround for scalar parsing issue
+    if (!DATE_REGEX.test((data.startDate as unknown) as string)) {
+      throw new Error('Start date is not ISO8601');
+    }
+
+    if (!DATE_REGEX.test((data.endDate as unknown) as string)) {
+      throw new Error('End date is not ISO8601');
+    }
+
+    const startDate = new Date(data.startDate);
+    const endDate = new Date(data.endDate);
+
     const resourceEntity = await this.resourceRepository.findOne(
       data.resourceId,
     );
 
     if (!resourceEntity) {
-      throw new NotFoundException('This resource does not exist');
+      throw new Error(`The resource ${data.resourceId} does not exist`);
+    }
+
+    if (startDate >= endDate) {
+      throw new Error('The end date must be lower than the start date');
+    }
+
+    const now = new Date();
+
+    if (startDate <= now) {
+      throw new Error('The start date must be in the future');
+    }
+
+    // workaround for sqlite date comparisons in typeorm
+    const formatDateForSqlite = date =>
+      date
+        .toISOString()
+        .replace('T', ' ')
+        .replace('Z', '');
+
+    const conflictingBooking = await this.bookingRepository.findOne({
+      resource: resourceEntity,
+      startDate: Raw(alias => `${alias} < "${formatDateForSqlite(endDate)}"`),
+      endDate: Raw(alias => `${alias} > "${formatDateForSqlite(startDate)}"`),
+    });
+
+    if (conflictingBooking) {
+      throw new Error(
+        `The ${conflictingBooking.name} booking (ID ${
+          conflictingBooking.id
+        }) is conflicting`,
+      );
     }
 
     const bookingEntity = new BookingEntity();
     bookingEntity.id = nanoid();
     bookingEntity.creationDate = new Date();
     bookingEntity.name = data.name;
-    bookingEntity.startDate = data.startDate;
-    bookingEntity.endDate = data.endDate;
+    bookingEntity.startDate = startDate;
+    bookingEntity.endDate = endDate;
     bookingEntity.resource = resourceEntity;
 
     await this.bookingRepository.save(bookingEntity);
@@ -42,8 +91,8 @@ export class BookingsService {
       id: bookingEntity.id,
       name: bookingEntity.name,
       creationDate: bookingEntity.creationDate,
-      startDate: data.startDate,
-      endDate: data.endDate,
+      startDate: startDate,
+      endDate: endDate,
     };
   }
 
@@ -103,11 +152,5 @@ export class BookingsService {
       startDate: entity.startDate,
       endDate: entity.endDate,
     }));
-  }
-
-  async remove(id: string): Promise<boolean> {
-    const result = await this.bookingRepository.delete(id);
-
-    return result.affected === 1;
   }
 }

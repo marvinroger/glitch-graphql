@@ -1,6 +1,12 @@
-import { Module } from '@nestjs/common';
+import {
+  Module,
+  MiddlewareConsumer,
+  RequestMethod,
+  NestModule,
+} from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import graphqlPlayground from 'graphql-playground-middleware-express';
 
 import { BookingsModule } from './bookings/bookings.module';
 
@@ -18,7 +24,19 @@ import { BookingsModule } from './bookings/bookings.module';
       tracing: true,
       debug: true,
       installSubscriptionHandlers: true,
+      playground: false,
     }),
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(
+        graphqlPlayground({
+          endpoint: '/graphql',
+          subscriptionEndpoint: '/graphql',
+        }),
+      )
+      .forRoutes({ path: '/graphql', method: RequestMethod.GET });
+  }
+}
